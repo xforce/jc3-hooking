@@ -6,7 +6,6 @@
 #include <locale>
 #include <sstream>
 #include <memory>
-#include "../singleton.h"
 
 #ifdef _WIN32
 #include <WinNT.h>
@@ -78,6 +77,25 @@ namespace util
 {
 	namespace hooking
 	{
+        template<typename T>
+        class singleton
+        {
+        public:
+            singleton() = default;
+            virtual ~singleton() = default;
+
+            static T* instance()
+            {
+                // Since C++11 this is thread safe, yay, no more locks and crap
+                static T* instance = new T();
+                return instance;
+            }
+
+            // Disable copy as this is a singleton
+            singleton &operator=(const singleton&) = delete;
+            singleton(const singleton&) = delete;
+        };
+
 		namespace hooking_helpers
 		{
 			// Just some put some code to address and address calculation
@@ -876,7 +894,7 @@ namespace util
 				}
 			};
 
-			class pattern_cache : public util::singleton<pattern_cache>
+			class pattern_cache : public singleton<pattern_cache>
 			{
 			private:
 				std::unordered_map<std::string, std::vector<match>> _cache;
@@ -898,7 +916,7 @@ namespace util
 				}
 			};
 
-			class ExecutableInfo : public util::singleton<ExecutableInfo>
+			class ExecutableInfo : public singleton<ExecutableInfo>
 			{
 			private:
 				hooking_helpers::executable_info exe_info;

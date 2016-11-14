@@ -3,7 +3,7 @@
 	{
 		'target_name': 'jc3_hooking',
 		'type': 'static_library',
-		'direct_dependent_settings': {
+		'all_dependent_settings': {
             'include_dirs': ['.'],
          },
 		'dependencies': [
