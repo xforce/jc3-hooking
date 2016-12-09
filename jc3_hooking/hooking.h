@@ -336,9 +336,7 @@ namespace util
 				}
 
 				inline ~AssemblyGen()
-				{
-					VirtualFree(_code, 0, MEM_RELEASE);
-				}
+				{}
 
 				inline void* GetCode()
 				{
@@ -633,6 +631,7 @@ namespace util
 			R(*m_origAddress)(Args...);
 
 			uintptr_t _address;
+            std::string _originalData;
 
 			std::unique_ptr<hooking_helpers::AssemblyGen> _assembly;
 		public:
@@ -651,6 +650,10 @@ namespace util
 #endif
 				_address = address;
 			}
+
+            virtual ~inject_call() {
+                memcpy((void*)_address, _originalData.data(), _originalData.size());
+            }
 
 			void inject(R(*target)(Args...))
 			{
@@ -673,11 +676,6 @@ namespace util
 				m_origAddress = (R(*)(Args...))origAddress;
 #pragma warning(push)
 #pragma warning(disable : 4311 4302)
-#if _x64
-				ud_t ud;
-				ud_init(&ud);
-
-				ud_set_mode(&ud, 64);
 
 				intptr_t addressPtr = ((intptr_t)_assembly->GetCode() - (intptr_t)_address - (4 + addressOffset));
 				int32_t address = static_cast<int32_t>((intptr_t)_assembly->GetCode() - (intptr_t)_address - (4 + addressOffset));
@@ -686,17 +684,27 @@ namespace util
 				{
 					assert(false);
 				}
-				else
-				{
-					// Write a jump rax to the end instead of the call
-					WORD data = 0xE0FF;
-					memcpy((void*)((uintptr_t)_assembly->GetCode() + (uintptr_t)_assembly->GetSize() - 2), (void*)&data, 2);
+                else
+                {
+                    // Write a jump rax to the end instead of the call
+                    WORD data = 0xE0FF;
+                    memcpy((void*)((uintptr_t)_assembly->GetCode() + (uintptr_t)_assembly->GetSize() - 2), (void*)&data, 2);
 
-					// Just replace a nop with a int 3 to debug the hook call assembly code
-					//BYTE bData = 0xCC;
-					//memcpy((void*)((uintptr_t)_assembly->GetCode()), (void*)&bData, 1);
-
+                    // Just replace a nop with a int 3 to debug the hook call assembly code
+                    //BYTE bData = 0xCC;
+                    //memcpy((void*)((uintptr_t)_assembly->GetCode()), (void*)&bData, 1);
+                    if (*(uint16_t*)_address == 0x15FF)
+                    {
+                        _originalData.resize(sizeof(uint16_t) + sizeof(uint32_t));
+                        memcpy((void*)_originalData.data(), (void*)_address, sizeof(uint16_t) + sizeof(uint32_t));
+                    }
+                    else
+                    {
+                        _originalData.resize(sizeof(uint8_t) + sizeof(uint32_t));
+                        memcpy((void*)_originalData.data(), (void*)_address, sizeof(uint8_t) + sizeof(uint32_t));
+                    }
 					// Patch call opcode so its not a call to another DLL
+                    uint32_t originalSize = 0;
 					if (*(uint16_t*)_address == 0x15FF)
 					{
 						uint16_t d = 0xE890;
@@ -705,12 +713,6 @@ namespace util
 
 					hooking_helpers::put<int32_t>(_address + addressOffset, address);
 				}
-#else
-				// TODO: add all the checks
-				intptr_t addressPtr = ((intptr_t)_assembly->GetCode() - (intptr_t)_address - (4 + addressOffset));
-				hooking_helpers::put<int32_t>(_address + addressOffset, address);
-#endif
-#pragma warning(pop)
 			}
 
 			template<size_t _Args = sizeof...(Args)>

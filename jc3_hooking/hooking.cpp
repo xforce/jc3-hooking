@@ -32,8 +32,6 @@ namespace hooking
 			auto addr = executableAddress + hookSectionOffset;
 			if (firstCall)
 			{
-				DWORD oldProtect;
-				VirtualProtect((LPVOID)(addr), size, PAGE_READWRITE, &oldProtect);
 				if(*(uint32_t*)(addr) == 0) {
 					*(uint32_t*)(addr) = sizeof(uint32_t);
 				}
@@ -41,8 +39,6 @@ namespace hooking
 			}
 
 			auto code = (LPVOID)(addr + *(uint32_t*)(addr));
-			DWORD oldProtect;
-			VirtualProtect(code, size, PAGE_EXECUTE_READWRITE, &oldProtect);
 			*(uint32_t*)(addr) += static_cast<uint32_t>(size);
 			return code;
 		}
